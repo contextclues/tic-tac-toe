@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tic Tac Toe</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    h1 { font-size: 2rem; margin-bottom: 0.5rem; letter-spacing: 2px; }
+    #status {
+      font-size: 1.1rem;
+      margin-bottom: 1.5rem;
+      height: 1.5rem;
+      color: #a0c4ff;
+    }
+    #board {
+      display: grid;
+      grid-template-columns: repeat(3, 110px);
+      grid-template-rows: repeat(3, 110px);
+      gap: 8px;
+    }
+    .cell {
+      background: #16213e;
+      border: 2px solid #0f3460;
+      border-radius: 10px;
+      font-size: 3rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      user-select: none;
+    }
+    .cell:hover:not(.taken) { background: #0f3460; transform: scale(1.04); }
+    .cell.x { color: #e94560; }
+    .cell.o { color: #a0c4ff; }
+    .cell.win { background: #0f3460; border-color: #e94560; }
+    #controls { margin-top: 1.5rem; display: flex; gap: 1rem; }
+    button {
+      padding: 0.5rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.85; }
+    #restart { background: #e94560; color: #fff; }
+    #mode-btn { background: #0f3460; color: #eee; border: 1px solid #a0c4ff; }
+    #score {
+      margin-top: 1rem;
+      font-size: 0.95rem;
+      color: #888;
+      display: flex;
+      gap: 2rem;
+    }
+    #score span { color: #eee; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Tic Tac Toe</h1>
+  <div id="status">X's turn</div>
+  <div id="board"></div>
+  <div id="controls">
+    <button id="restart">Restart</button>
+    <button id="mode-btn">vs CPU</button>
+  </div>
+  <div id="score">
+    X wins: <span id="x-score">0</span>
+    Draws: <span id="d-score">0</span>
+    O wins: <span id="o-score">0</span>
+  </div>
+
+  <script>
+    const board = document.getElementById('board');
+    const status = document.getElementById('status');
+    const restartBtn = document.getElementById('restart');
+    const modeBtn = document.getElementById('mode-btn');
+    const xScoreEl = document.getElementById('x-score');
+    const oScoreEl = document.getElementById('o-score');
+    const dScoreEl = document.getElementById('d-score');
+
+    const WINS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    let cells, current, gameOver, vsCPU, scores = {X:0,O:0,D:0};
+
+    function init() {
+      cells = Array(9).fill(null);
+      current = 'X';
+      gameOver = false;
+      render();
+      status.textContent = "X's turn";
+      if (vsCPU && current === 'O') cpuMove();
+    }
+
+    function render() {
+      board.innerHTML = '';
+      cells.forEach((val, i) => {
+        const cell = document.createElement('div');
+        cell.className = 'cell' + (val ? ` ${val.toLowerCase()} taken` : '');
+        cell.textContent = val || '';
+        cell.addEventListener('click', () => handleClick(i));
+        board.appendChild(cell);
+      });
+    }
+
+    function handleClick(i) {
+      if (gameOver || cells[i] || (vsCPU && current === 'O')) return;
+      cells[i] = current;
+      const win = checkWin();
+      render();
+      if (win) return endGame(win);
+      if (cells.every(Boolean)) return endGame(null);
+      current = current === 'X' ? 'O' : 'X';
+      status.textContent = `${current}'s turn`;
+      if (vsCPU && current === 'O') setTimeout(cpuMove, 350);
+    }
+
+    function cpuMove() {
+      if (gameOver) return;
+      // Try to win, then block, then center, then random
+      let move = findBest('O') ?? findBest('X') ?? (cells[4] == null ? 4 : null) ?? randomEmpty();
+      cells[move] = 'O';
+      const win = checkWin();
+      render();
+      if (win) return endGame(win);
+      if (cells.every(Boolean)) return endGame(null);
+      current = 'X';
+      status.textContent = "X's turn";
+    }
+
+    function findBest(player) {
+      for (const [a,b,c] of WINS) {
+        const line = [cells[a], cells[b], cells[c]];
+        if (line.filter(v => v === player).length === 2 && line.includes(null)) {
+          return [a,b,c][line.indexOf(null)];
+        }
+      }
+      return null;
+    }
+
+    function randomEmpty() {
+      const empty = cells.map((v,i) => v ? null : i).filter(i => i !== null);
+      return empty[Math.floor(Math.random() * empty.length)];
+    }
+
+    function checkWin() {
+      for (const combo of WINS) {
+        const [a,b,c] = combo;
+        if (cells[a] && cells[a] === cells[b] && cells[b] === cells[c]) return combo;
+      }
+      return null;
+    }
+
+    function endGame(winCombo) {
+      gameOver = true;
+      if (winCombo) {
+        winCombo.forEach(i => board.children[i].classList.add('win'));
+        scores[current]++;
+        status.textContent = `${current} wins!`;
+      } else {
+        scores.D++;
+        status.textContent = "It's a draw!";
+      }
+      xScoreEl.textContent = scores.X;
+      oScoreEl.textContent = scores.O;
+      dScoreEl.textContent = scores.D;
+    }
+
+    restartBtn.addEventListener('click', init);
+    modeBtn.addEventListener('click', () => {
+      vsCPU = !vsCPU;
+      modeBtn.textContent = vsCPU ? 'vs Human' : 'vs CPU';
+      init();
+    });
+
+    vsCPU = false;
+    init();
+  </script>
+</body>
+</html>
